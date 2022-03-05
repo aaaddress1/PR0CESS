@@ -327,8 +327,8 @@ static const unsigned short LaunchAdminProcess_FormatStringOffsetTable[] =
 static const MIDL_STUB_DESC LaunchAdminProcess_StubDesc = 
     {
     (void *)& LaunchAdminProcess___RpcClientInterface,
-    MIDL_user_allocate,
-    MIDL_user_free,
+    SysAllocString,
+    SysFreeString,
     &LaunchAdminProcess__MIDL_AutoBindHandle,
     0,
     0,

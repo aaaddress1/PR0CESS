@@ -90,7 +90,7 @@
       <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>
-      <SubSystem>Console</SubSystem>
+      <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
   </ItemDefinitionGroup>
@@ -141,6 +141,7 @@
   <ItemGroup>
     <ClCompile Include="aic.c" />
     <ClCompile Include="appinfo\x64\appinfo64.c" />
+    <ClCompile Include="appinfo\x86-32\appinfo32.c" />
     <ClCompile Include="tyranid_appInfo_alpc.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
