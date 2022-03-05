@@ -20,7 +20,6 @@
 #else
 #include "appinfo/x86-32/appinfo32.h"
 #endif
-
 /*
 * AicpAsyncInitializeHandle
 *
