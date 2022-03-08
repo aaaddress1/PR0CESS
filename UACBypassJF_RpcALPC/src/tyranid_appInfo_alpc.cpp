@@ -38,7 +38,7 @@
 * Create new process using parent process handle.
 *
 */
-NTSTATUS ucmxCreateProcessFromParent( _In_ HANDLE elevatedToken, _In_ LPWSTR pathToExe) {
+NTSTATUS ucmxCreateProcessFromParent( _In_ HANDLE parentHandle, _In_ LPWSTR pathToExe) {
     NTSTATUS status = STATUS_UNSUCCESSFUL;
     SIZE_T size = 0x30;
     STARTUPINFOEX si{ 0 };
@@ -49,7 +49,7 @@ NTSTATUS ucmxCreateProcessFromParent( _In_ HANDLE elevatedToken, _In_ LPWSTR pat
     if (si.lpAttributeList) {
 
         if (InitializeProcThreadAttributeList(si.lpAttributeList, 1, 0, &size)) {
-            if (UpdateProcThreadAttribute(si.lpAttributeList, 0, PROC_THREAD_ATTRIBUTE_PARENT_PROCESS, &elevatedToken, sizeof(HANDLE), 0, 0))
+            if (UpdateProcThreadAttribute(si.lpAttributeList, 0, PROC_THREAD_ATTRIBUTE_PARENT_PROCESS, &parentHandle, sizeof(HANDLE), 0, 0))
             {
                 si.StartupInfo.dwFlags = STARTF_USESHOWWINDOW;
                 si.StartupInfo.wShowWindow = SW_SHOW;
@@ -72,6 +72,7 @@ NTSTATUS ucmxCreateProcessFromParent( _In_ HANDLE elevatedToken, _In_ LPWSTR pat
     
     return status;
 }
+
 
 /*
 * ucmDebugObjectMethod
