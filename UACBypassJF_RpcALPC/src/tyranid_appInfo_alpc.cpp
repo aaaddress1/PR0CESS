@@ -1,4 +1,4 @@
-﻿/*******************************************************************************
+/*******************************************************************************
 *
 *  (C) COPYRIGHT AUTHORS, 2017 - 2020B
 *
@@ -38,52 +38,37 @@
 * Create new process using parent process handle.
 *
 */
-NTSTATUS ucmxCreateProcessFromParent( _In_ HANDLE ParentProcess, _In_ LPWSTR Payload) {
-
+NTSTATUS ucmxCreateProcessFromParent( _In_ HANDLE elevatedToken, _In_ LPWSTR pathToExe) {
     NTSTATUS status = STATUS_UNSUCCESSFUL;
     SIZE_T size = 0x30;
     STARTUPINFOEX si{ 0 };
     PROCESS_INFORMATION pi{ 0 };
     si.StartupInfo.cb = sizeof(STARTUPINFOEX);
+    *(PVOID*)(&si.lpAttributeList) = malloc(size);
 
-    do {
-        if (size > 1024) break;
-        auto p = malloc(size);
+    if (si.lpAttributeList) {
 
-        *(PVOID*)(&si.lpAttributeList) = p;
-        if (si.lpAttributeList) {
+        if (InitializeProcThreadAttributeList(si.lpAttributeList, 1, 0, &size)) {
+            if (UpdateProcThreadAttribute(si.lpAttributeList, 0, PROC_THREAD_ATTRIBUTE_PARENT_PROCESS, &elevatedToken, sizeof(HANDLE), 0, 0))
+            {
+                si.StartupInfo.dwFlags = STARTF_USESHOWWINDOW;
+                si.StartupInfo.wShowWindow = SW_SHOW;
 
-            if (InitializeProcThreadAttributeList(si.lpAttributeList, 1, 0, &size)) {
-                if (UpdateProcThreadAttribute(si.lpAttributeList, 0,
-                    PROC_THREAD_ATTRIBUTE_PARENT_PROCESS, &ParentProcess, sizeof(HANDLE), 0, 0)) //-V616
-                {
-                    si.StartupInfo.dwFlags = STARTF_USESHOWWINDOW;
-                    si.StartupInfo.wShowWindow = SW_SHOW;
-
-                    if (CreateProcess(NULL,
-                        Payload,
-                        NULL,
-                        NULL,
-                        FALSE,
-                        CREATE_UNICODE_ENVIRONMENT | EXTENDED_STARTUPINFO_PRESENT,
-                        NULL,
-                        (LPWSTR)L"C:\\Windows\\System32",
-                        (LPSTARTUPINFO)&si,
-                        &pi))
-                    {
-                        CloseHandle(pi.hThread);
-                        CloseHandle(pi.hProcess);
-                        status = STATUS_SUCCESS;
-                    }
+                if (CreateProcess(
+                    0, pathToExe, 0, 0, 0, CREATE_UNICODE_ENVIRONMENT | EXTENDED_STARTUPINFO_PRESENT, 0, 
+                    LPWSTR(L"C:/Windows/System32"), (LPSTARTUPINFO)&si, &pi)) {
+                    CloseHandle(pi.hThread);
+                    CloseHandle(pi.hProcess);
+                    status = STATUS_SUCCESS;
                 }
             }
-
-            if (si.lpAttributeList)
-                DeleteProcThreadAttributeList(si.lpAttributeList); //dumb empty routine
-
-            free(si.lpAttributeList);
         }
-    } while (GetLastError() == ERROR_INSUFFICIENT_BUFFER);
+
+        if (si.lpAttributeList)
+            DeleteProcThreadAttributeList(si.lpAttributeList); //dumb empty routine
+
+        free(si.lpAttributeList);
+    }
     
     return status;
 }
