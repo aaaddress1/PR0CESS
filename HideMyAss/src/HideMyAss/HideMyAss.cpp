@@ -23,7 +23,47 @@ DWORD64 GetKernelBaseAddress() {
 	}
 	return NULL;
 }
+/* ref: https://www.mitchellzakocs.com/blog/dbutil
+DWORD64 Memory::GetKernelBase(_In_ std::string name) {
 
+    // Defining EnumDeviceDrivers() and GetDeviceDriverBaseNameA() parameters
+    LPVOID lpImageBase[1024]{};
+    DWORD lpcbNeeded{};
+    int drivers{};
+    char lpFileName[1024]{};
+    DWORD64 imageBase{};
+    // Grabs an array of all of the device drivers
+    BOOL success = EnumDeviceDrivers(
+        lpImageBase,
+        sizeof(lpImageBase),
+        &lpcbNeeded
+    );
+    // Makes sure that we successfully grabbed the drivers
+    if (!success)
+    {
+        Logger::Error("Unable to invoke EnumDeviceDrivers()!");
+        return 0;
+    }
+    // Defining number of drivers for GetDeviceDriverBaseNameA()
+    drivers = lpcbNeeded / sizeof(lpImageBase[0]);
+    // Parsing loaded drivers
+    for (int i = 0; i < drivers; i++) {
+        // Gets the name of the driver
+        GetDeviceDriverBaseNameA(
+            lpImageBase[i],
+            lpFileName,
+            sizeof(lpFileName) / sizeof(char)
+        );
+        // Compares the indexed driver and with our specified driver name
+        if (!strcmp(name.c_str(), lpFileName)) {
+            imageBase = (DWORD64)lpImageBase[i];
+            Logger::InfoHex("Found Image Base for " + name, imageBase);
+            break;
+        }
+    }
+    return imageBase;
+}
+*/
 DWORD ReadPrimitive(DWORD64 Address) {
 	DBUTIL_READ_BUFFER ReadBuff{};
 	ReadBuff.Address = Address;
